@@ -6,7 +6,7 @@
     "CODEx_TODO.md"
   ],
   "next_actions": [
-    "运行 pytest -> 确认翻译流程通过 -> 更新 TODO 与状态记录"
+    "根据需要调整翻译器依赖安装（缺省路径 C:\\apps\\miniconda\\envs\\alpha\\python.exe 不存在时，可用已有解释器运行）"
   ],
-  "notes": "原脚本按旧列解析且使用错误的异步翻译方式，已改为同步逐词翻译并添加单测"
+  "notes": "已改为同步逐词翻译，兼容协程/协程函数返回；增加翻译结果为 None 或连续异常的重试与占位处理，支持命令行输入输出参数；输出格式对齐 razaa_ce（表头“标题,单词1..N”，每书两行中英）；控制台实时统计总词、进度、成功、失败、重试数；pytest 使用 F:\\apps\\anaconda\\envs\\ballpy\\python.exe 通过，指定的 C:\\apps\\miniconda\\envs\\alpha\\python.exe 路径不存在"
 }
