@@ -1,8 +1,12 @@
 {
   "current_task": "适配 razfull.csv 的翻译脚本",
-  "last_changes": [],
-  "next_actions": [
-    "重写脚本逻辑 -> 补单测 -> 运行pytest -> 更新TODO与state"
+  "last_changes": [
+    "translate.py",
+    "tests/test_translate.py",
+    "CODEx_TODO.md"
   ],
-  "notes": "原脚本按旧列解析且使用错误的异步翻译方式"
+  "next_actions": [
+    "运行 pytest -> 确认翻译流程通过 -> 更新 TODO 与状态记录"
+  ],
+  "notes": "原脚本按旧列解析且使用错误的异步翻译方式，已改为同步逐词翻译并添加单测"
 }
