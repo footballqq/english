@@ -1,0 +1,8 @@
+{
+  "current_task": "适配 razfull.csv 的翻译脚本",
+  "last_changes": [],
+  "next_actions": [
+    "重写脚本逻辑 -> 补单测 -> 运行pytest -> 更新TODO与state"
+  ],
+  "notes": "原脚本按旧列解析且使用错误的异步翻译方式"
+}
