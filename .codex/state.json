@@ -1,12 +1,12 @@
 {
-  "current_task": "适配 razfull.csv 的翻译脚本",
+  "current_task": "改造 kid_quiz.html（错题本 + 复习模式 + localStorage）",
   "last_changes": [
-    "translate.py",
-    "tests/test_translate.py",
+    "kid_quiz.html",
+    "plan.md",
     "CODEx_TODO.md"
   ],
   "next_actions": [
-    "根据需要调整翻译器依赖安装（缺省路径 C:\\apps\\miniconda\\envs\\alpha\\python.exe 不存在时，可用已有解释器运行）"
+    "手动体验：加载 razfulltranslate3.csv 后验证考试/复习模式和错题本持久化；根据需要微调 UI/文案"
   ],
-  "notes": "已改为同步逐词翻译，兼容协程/协程函数返回；增加翻译结果为 None 或连续异常的重试与占位处理，支持命令行输入输出参数；输出格式对齐 razaa_ce（表头“标题,单词1..N”，每书两行中英）；控制台实时统计总词、进度、成功、失败、重试数；pytest 使用 F:\\apps\\anaconda\\envs\\ballpy\\python.exe 通过，指定的 C:\\apps\\miniconda\\envs\\alpha\\python.exe 路径不存在"
+  "notes": "已完成前端重构：解析 razfulltranslate3.csv，localStorage 错题本/掌握本，考试与复习模式、题源过滤、艾宾浩斯提示与使用说明。"
 }
