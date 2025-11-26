@@ -38,7 +38,7 @@
             <div class="row" style="justify-content:space-between; align-items:flex-end;">
                 <div>
                     <h1>单词闯关 & 复习</h1>
-                    <div id="notice">基于 razfulltranslate3.csv · 本地存储错题本与掌握本（localStorage），换设备会丢失数据。</div>
+                    <div id="notice">基于 razfulltranslate666.csv · 本地存储错题本与掌握本（localStorage），换设备会丢失数据。</div>
                 </div>
                 <button class="btn text" id="help-btn">使用说明</button>
             </div>
@@ -62,7 +62,12 @@
                     <option value="onlyMastered">只出已掌握</option>
                 </select>
                 <label for="count-input">题量</label>
-                <input type="number" id="count-input" min="1" max="200" value="20" style="width:90px;">
+                <select id="count-input" style="width:90px;">
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                    <option value="40">40</option>
+                    <option value="50" selected>50</option>
+                </select>
                 <button class="btn secondary" id="start-btn">开始</button>
             </div>
             <div id="review-hint" style="margin-top:8px; font-size:14px; color:#4a5c75;">复习模式默认每轮 5 个单词，可选择“错题本”或“全部单词”源。</div>
@@ -117,7 +122,7 @@
     </dialog>
 
     <script>
-    const csvPath = 'razfulltranslate3.csv';
+    const csvPath = 'razfulltranslate666.csv';
     const REVIEW_BATCH = 5;
     const MAX_LINES = 500;
     const EB_SCHEDULE_ERRORS = [1, 2, 4, 7, 15, 30]; // 天
@@ -275,7 +280,10 @@
         const level = levelSelect.value;
         const sourceType = sourceSelect.value;
         const total = Math.max(1, Math.min(Number(countInput.value) || 20, 200));
-        const questions = pickQuestions(level, sourceType, total);
+        const questions = pickQuestions(level, sourceType, total).map(q => ({
+            ...q,
+            prompt: Math.random() < 0.5 ? "en" : "zh", // 随机出中文或英文
+        }));
         if (!questions.length) { alert('当前条件下没有可出题的单词，请切换题源或等级。'); return; }
         currentSession = { mode: 'exam', level, sourceType, questions, idx: 0, correct: 0, wrong: [] };
         updateBadges();
@@ -289,7 +297,7 @@
         if (!['errors', 'onlyMastered', 'all', 'excludeMastered'].includes(sourceType)) {
             sourceType = 'all';
         }
-        const questions = pickQuestions(level, sourceType, REVIEW_BATCH);
+        const questions = pickQuestions(level, sourceType, REVIEW_BATCH).map(q => ({ ...q, prompt: 'en' }));
         if (!questions.length) { alert('当前条件下没有可复习的单词。'); return; }
         currentSession = { mode: 'review', level, sourceType, questions, idx: 0, correct: 0, wrong: [], revealed: false };
         updateBadges();
@@ -310,7 +318,8 @@
         const item = s.questions[s.idx];
         progressEl.textContent = `${s.idx + 1} / ${s.questions.length}`;
         if (s.mode === 'exam') {
-            wordMain.textContent = item.en;
+            const promptLang = item.prompt || 'en';
+            wordMain.textContent = promptLang === 'en' ? item.en : item.zh;
             wordAux.textContent = '';
             btnReveal.style.display = 'none';
             btnKnow.textContent = '认识 / 对';
@@ -323,9 +332,8 @@
             btnReveal.style.display = s.revealed ? 'none' : 'inline-block';
             btnKnow.textContent = '认识 / 记住了';
             btnDontKnow.textContent = '不认识';
-            const enabled = s.revealed;
-            btnKnow.disabled = !enabled;
-            btnDontKnow.disabled = !enabled;
+            btnKnow.disabled = false; // 允许直接记住或不会
+            btnDontKnow.disabled = false;
         }
     }
 
@@ -333,7 +341,7 @@
         const s = currentSession;
         if (!s) return;
         const item = s.questions[s.idx];
-        if (s.mode === 'review' && !s.revealed) return;
+        // 复习模式允许不揭示直接记住
         recordRight(s.level, item);
         s.correct += 1;
         s.idx += 1;
@@ -345,14 +353,15 @@
         const s = currentSession;
         if (!s) return;
         const item = s.questions[s.idx];
-        if (s.mode === 'review' && !s.revealed) return;
+        const answerText = item.zh;
         if (s.mode === 'exam') {
             btnKnow.disabled = true;
             btnDontKnow.disabled = true;
             recordWrong(s.level, item);
             s.wrong.push(item);
-            wordMain.textContent = item.en;
-            wordAux.textContent = item.zh;
+            const promptLang = item.prompt || 'en';
+            wordMain.textContent = promptLang === 'en' ? item.en : item.zh;
+            wordAux.textContent = promptLang === 'en' ? item.zh : item.en;
             setTimeout(() => {
                 s.idx += 1;
                 s.revealed = false;
@@ -361,11 +370,19 @@
                 renderQuestion();
             }, 1000);
         } else {
+            btnKnow.disabled = true;
+            btnDontKnow.disabled = true;
+            wordMain.textContent = item.en;
+            wordAux.textContent = answerText;
             recordWrong(s.level, item);
             s.wrong.push(item);
-            s.idx += 1;
-            s.revealed = false;
-            renderQuestion();
+            setTimeout(() => {
+                s.idx += 1;
+                s.revealed = false;
+                btnKnow.disabled = false;
+                btnDontKnow.disabled = false;
+                renderQuestion();
+            }, 1000);
         }
     }
 
