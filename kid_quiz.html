@@ -120,6 +120,8 @@
     const csvPath = 'razfulltranslate3.csv';
     const REVIEW_BATCH = 5;
     const MAX_LINES = 500;
+    const EB_SCHEDULE_ERRORS = [1, 2, 4, 7, 15, 30]; // 天
+    const EB_SCHEDULE_MASTERED = [3, 7, 14, 30]; // 天
 
     const qs = id => document.getElementById(id);
     const levelSelect = qs('level-select');
@@ -234,7 +236,24 @@
         const errs = loadError(level).filter(w => w.en !== word.en);
         saveError(level, errs);
         const mastered = loadMastered(level);
-        upsert(mastered, { ...word, first_right_at: mastered.first_right_at || now(), last_review_at: now() });
+        const idx = mastered.findIndex(w => w.en === word.en);
+        if (idx >= 0) {
+            const item = mastered[idx];
+            mastered[idx] = {
+                ...item,
+                ...word,
+                review_count: (item.review_count || 1) + 1,
+                last_review_at: now(),
+                first_right_at: item.first_right_at || now()
+            };
+        } else {
+            mastered.push({
+                ...word,
+                review_count: 1,
+                first_right_at: now(),
+                last_review_at: now()
+            });
+        }
         saveMastered(level, mastered);
     }
 
@@ -264,9 +283,12 @@
         renderQuestion();
     }
 
-    function startReview() {
+    function startReview(presetSource) {
         const level = levelSelect.value;
-        const sourceType = sourceSelect.value === 'errors' ? 'errors' : 'all';
+        let sourceType = presetSource || sourceSelect.value;
+        if (!['errors', 'onlyMastered', 'all', 'excludeMastered'].includes(sourceType)) {
+            sourceType = 'all';
+        }
         const questions = pickQuestions(level, sourceType, REVIEW_BATCH);
         if (!questions.length) { alert('当前条件下没有可复习的单词。'); return; }
         currentSession = { mode: 'review', level, sourceType, questions, idx: 0, correct: 0, wrong: [], revealed: false };
@@ -293,12 +315,17 @@
             btnReveal.style.display = 'none';
             btnKnow.textContent = '认识 / 对';
             btnDontKnow.textContent = '不认识 / 错';
+            btnKnow.disabled = false;
+            btnDontKnow.disabled = false;
         } else {
             wordMain.textContent = item.en;
             wordAux.textContent = s.revealed ? item.zh : '点击“显示中文”查看';
             btnReveal.style.display = s.revealed ? 'none' : 'inline-block';
-            btnKnow.textContent = s.revealed ? '认识 / 记住了' : '显示中文';
-            btnDontKnow.textContent = s.revealed ? '不认识' : '跳过';
+            btnKnow.textContent = '认识 / 记住了';
+            btnDontKnow.textContent = '不认识';
+            const enabled = s.revealed;
+            btnKnow.disabled = !enabled;
+            btnDontKnow.disabled = !enabled;
         }
     }
 
@@ -306,7 +333,7 @@
         const s = currentSession;
         if (!s) return;
         const item = s.questions[s.idx];
-        if (s.mode === 'review' && !s.revealed) { s.revealed = true; wordAux.textContent = item.zh; btnReveal.style.display = 'none'; btnKnow.textContent = '认识 / 记住了'; btnDontKnow.textContent = '不认识'; return; }
+        if (s.mode === 'review' && !s.revealed) return;
         recordRight(s.level, item);
         s.correct += 1;
         s.idx += 1;
@@ -318,12 +345,28 @@
         const s = currentSession;
         if (!s) return;
         const item = s.questions[s.idx];
-        if (s.mode === 'review' && !s.revealed) { s.revealed = true; wordAux.textContent = item.zh; btnReveal.style.display = 'none'; btnKnow.textContent = '认识 / 记住了'; btnDontKnow.textContent = '不认识'; return; }
-        recordWrong(s.level, item);
-        s.wrong.push(item);
-        s.idx += 1;
-        s.revealed = false;
-        renderQuestion();
+        if (s.mode === 'review' && !s.revealed) return;
+        if (s.mode === 'exam') {
+            btnKnow.disabled = true;
+            btnDontKnow.disabled = true;
+            recordWrong(s.level, item);
+            s.wrong.push(item);
+            wordMain.textContent = item.en;
+            wordAux.textContent = item.zh;
+            setTimeout(() => {
+                s.idx += 1;
+                s.revealed = false;
+                btnKnow.disabled = false;
+                btnDontKnow.disabled = false;
+                renderQuestion();
+            }, 1000);
+        } else {
+            recordWrong(s.level, item);
+            s.wrong.push(item);
+            s.idx += 1;
+            s.revealed = false;
+            renderQuestion();
+        }
     }
 
     function endSession() {
@@ -371,11 +414,23 @@
         levels.forEach(lv => {
             const errs = loadError(lv);
             const mastered = loadMastered(lv);
-            const dueErr = errs.filter(w => nowTs - (w.last_wrong_at || nowTs) > dayMs * 1);
-            const dueMas = mastered.filter(w => nowTs - (w.last_review_at || w.first_right_at || nowTs) > dayMs * 3);
-            if (dueErr.length || dueMas.length) parts.push(`${lv}: 错题 ${dueErr.length} 个需复习，已掌握 ${dueMas.length} 个待巩固`);
+            const dueErr = errs.filter(w => {
+                const stage = Math.min((w.wrong_count || 1) - 1, EB_SCHEDULE_ERRORS.length - 1);
+                const needDays = EB_SCHEDULE_ERRORS[stage];
+                return (nowTs - (w.last_wrong_at || nowTs)) >= needDays * dayMs;
+            });
+            const dueMas = mastered.filter(w => {
+                const stage = Math.min((w.review_count || 1) - 1, EB_SCHEDULE_MASTERED.length - 1);
+                const needDays = EB_SCHEDULE_MASTERED[stage];
+                return (nowTs - (w.last_review_at || w.first_right_at || nowTs)) >= needDays * dayMs;
+            });
+            if (dueErr.length || dueMas.length) {
+                const errBtn = dueErr.length ? `<button class="btn text eb-btn" data-level="${lv}" data-src="errors">复习错题 (${dueErr.length})</button>` : '';
+                const masBtn = dueMas.length ? `<button class="btn text eb-btn" data-level="${lv}" data-src="onlyMastered">巩固已掌握 (${dueMas.length})</button>` : '';
+                parts.push(`<div class="row" style="align-items:center; gap:6px;"><span class="badge">${lv}</span><span>错题 ${dueErr.length} · 已掌握 ${dueMas.length}</span>${errBtn}${masBtn}</div>`);
+            }
         });
-        ebHint.textContent = parts.length ? `艾宾浩斯提示：${parts.join('；')}` : '艾宾浩斯提示：暂无需要复习的单词。';
+        ebHint.innerHTML = parts.length ? `艾宾浩斯提示：<br>${parts.join('')}` : '艾宾浩斯提示：暂无需要复习的单词。';
     }
 
     function populateLevels() {
@@ -408,11 +463,28 @@
     btnKnow.addEventListener('click', handleKnow);
     btnDontKnow.addEventListener('click', handleDontKnow);
     btnExit.addEventListener('click', handleExit);
-    btnReveal.addEventListener('click', () => { currentSession && (currentSession.revealed = true, wordAux.textContent = currentSession.questions[currentSession.idx].zh, btnReveal.style.display='none'); });
+    btnReveal.addEventListener('click', () => {
+        if (!currentSession) return;
+        currentSession.revealed = true;
+        wordAux.textContent = currentSession.questions[currentSession.idx].zh;
+        btnReveal.style.display='none';
+        btnKnow.disabled = false;
+        btnDontKnow.disabled = false;
+    });
     btnCopyErrors.addEventListener('click', copyErrors);
     btnClearErrors.addEventListener('click', clearErrors);
     helpBtn.addEventListener('click', () => helpDialog.showModal());
     helpClose.addEventListener('click', () => helpDialog.close());
+    ebHint.addEventListener('click', (e) => {
+        const btn = e.target.closest('.eb-btn');
+        if (!btn) return;
+        const lv = btn.dataset.level;
+        const src = btn.dataset.src;
+        if (lv) levelSelect.value = lv;
+        modeSelect.value = 'review';
+        sourceSelect.value = src === 'onlyMastered' ? 'onlyMastered' : 'errors';
+        startReview(src);
+    });
 
     init();
     </script>
