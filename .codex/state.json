@@ -1,13 +1,14 @@
 {
-  "current_task": "改造 kid_quiz.html（错题本 + 复习模式 + localStorage）",
+  "current_task": "修复 kid_quiz.html 移动端乱码（编码优先 UTF-8）",
   "last_changes": [
     "kid_quiz.html",
-    "readme.md",
-    "plan.md",
+    "tests/test_encoding_html.py",
+    "tests/test_translate.py",
     "CODEx_TODO.md"
   ],
   "next_actions": [
-    "手动体验：加载 razfulltranslate3.csv 后验证考试/复习模式和错题本持久化；根据需要微调 UI/文案"
+    "真机再验 iPad/Android 显示是否正常，必要时加入字体兜底",
+    "如需按要求使用 C:/apps/miniconda/envs/alpha/python.exe 运行 pytest，请先创建该解释器"
   ],
-  "notes": "已完成前端重构：解析 razfulltranslate3.csv，localStorage 错题本/掌握本，考试与复习模式、题源过滤、艾宾浩斯提示与使用说明。"
+  "notes": "loadCsv 先用 UTF-8 fatal 解码，异常时再尝试 GBK；新增编码检测用例并同步异步化 translate 测试；pytest 使用系统 python 通过"
 }

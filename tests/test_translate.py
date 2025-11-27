@@ -1,4 +1,5 @@
 # codex: 2025-11-25 校验 translate 脚本的解析、协程兼容与 razaa_ce 输出格式
+import asyncio
 import csv
 from pathlib import Path
 
@@ -23,7 +24,7 @@ class DummyTranslator:
         def __init__(self, text):
             self.text = text
 
-    def translate(self, text, src="en", dest="zh-cn"):
+    async def translate(self, text, src="en", dest="zh-cn"):
         self.calls.append((text, src, dest))
         translated = self.mapping.get(text, f"{text}-zh")
         return self._Result(translated)
@@ -37,12 +38,14 @@ def test_parse_word_list_trims_and_filters():
 def test_translate_in_chunks_calls_translator_once_per_word():
     translator = DummyTranslator({"cat": "猫", "dog": "狗"})
     stats = TranslationStats(total_words=3)
-    result = translate_in_chunks(
-        ["cat", "dog", "cow"],
-        translator,
-        chunk_size=2,
-        pause_seconds=0,
-        stats=stats,
+    result = asyncio.run(
+        translate_in_chunks(
+            ["cat", "dog", "cow"],
+            translator,
+            chunk_size=2,
+            pause_seconds=0,
+            stats=stats,
+        )
     )
     assert result == ["猫", "狗", "cow-zh"]
     assert translator.calls == [
@@ -66,11 +69,13 @@ class AsyncTranslator:
 
 def test_translate_in_chunks_handles_coroutine_result():
     translator = AsyncTranslator()
-    result = translate_in_chunks(
-        ["bird", "cat"],
-        translator,
-        chunk_size=1,
-        pause_seconds=0,
+    result = asyncio.run(
+        translate_in_chunks(
+            ["bird", "cat"],
+            translator,
+            chunk_size=1,
+            pause_seconds=0,
+        )
     )
     assert result == ["bird-async", "cat-async"]
 
@@ -88,11 +93,13 @@ class AsyncFuncTranslator:
 
 def test_translate_in_chunks_handles_coroutine_function():
     translator = AsyncFuncTranslator()
-    result = translate_in_chunks(
-        ["ant", "bee"],
-        translator,
-        chunk_size=2,
-        pause_seconds=0,
+    result = asyncio.run(
+        translate_in_chunks(
+            ["ant", "bee"],
+            translator,
+            chunk_size=2,
+            pause_seconds=0,
+        )
     )
     assert result == ["ant-async-func", "bee-async-func"]
 
@@ -103,34 +110,38 @@ def test_translate_in_chunks_handles_none_result_with_retry():
             super().__init__({"ok": "好"})
             self.seen = False
 
-        def translate(self, text, src="en", dest="zh-cn"):
+        async def translate(self, text, src="en", dest="zh-cn"):
             if not self.seen:
                 self.seen = True
                 return None
-            return super().translate(text, src=src, dest=dest)
+            return await super().translate(text, src=src, dest=dest)
 
     translator = NoneOnceTranslator()
-    result = translate_in_chunks(
-        ["ok"],
-        translator,
-        chunk_size=1,
-        pause_seconds=0,
+    result = asyncio.run(
+        translate_in_chunks(
+            ["ok"],
+            translator,
+            chunk_size=1,
+            pause_seconds=0,
+        )
     )
     assert result == ["好"]
 
 
 def test_translate_in_chunks_gives_placeholder_after_retries():
     class AlwaysFailTranslator:
-        def translate(self, text, src="en", dest="zh-cn"):
+        async def translate(self, text, src="en", dest="zh-cn"):
             raise RuntimeError("boom")
 
     stats = TranslationStats(total_words=1)
-    result = translate_in_chunks(
-        ["fail"],
-        AlwaysFailTranslator(),
-        chunk_size=1,
-        pause_seconds=0,
-        stats=stats,
+    result = asyncio.run(
+        translate_in_chunks(
+            ["fail"],
+            AlwaysFailTranslator(),
+            chunk_size=1,
+            pause_seconds=0,
+            stats=stats,
+        )
     )
     assert len(result) == 1 and result[0].startswith("[翻译失败:")
     assert stats.fail == 1 and stats.processed == 1
@@ -157,24 +168,26 @@ def test_process_file_outputs_razaa_ce_like_rows(tmp_path: Path):
             "house": "房子",
         }
     )
-    process_file(
-        input_path=str(input_path),
-        output_path=str(output_path),
-        translator=translator,
-        chunk_size=10,
-        pause_seconds=0,
-        show_progress=False,
+    asyncio.run(
+        process_file(
+            input_path=str(input_path),
+            output_path=str(output_path),
+            translator=translator,
+            chunk_size=10,
+            pause_seconds=0,
+            show_progress=False,
+        )
     )
 
     with output_path.open("r", encoding="utf-8", newline="") as f:
         rows = list(csv.reader(f))
 
-    assert rows[0] == ["标题", "单词1", "单词2"]
+    assert rows[0] == ["RAZ Level", "Book Title", "单词1", "单词2"]
     assert rows[1:] == [
-        ["农场动物", "猫", "狗"],
-        ["Farm Animals", "cat", "dog"],
-        ["树屋", "树", "房子"],
-        ["Tree House", "tree", "house"],
+        ["aa", translator.mapping["Farm Animals"], translator.mapping["cat"], translator.mapping["dog"]],
+        ["aa", "Farm Animals", "cat", "dog"],
+        ["bb", translator.mapping["Tree House"], translator.mapping["tree"], translator.mapping["house"]],
+        ["bb", "Tree House", "tree", "house"],
     ]
 
 
@@ -189,13 +202,15 @@ def test_process_file_returns_stats(tmp_path: Path):
         csv.writer(f).writerows(input_rows)
 
     translator = DummyTranslator({"One Book": "一本书", "a": "啊", "b": "波"})
-    stats = process_file(
-        input_path=str(input_path),
-        output_path=str(output_path),
-        translator=translator,
-        chunk_size=10,
-        pause_seconds=0,
-        show_progress=False,
+    stats = asyncio.run(
+        process_file(
+            input_path=str(input_path),
+            output_path=str(output_path),
+            translator=translator,
+            chunk_size=10,
+            pause_seconds=0,
+            show_progress=False,
+        )
     )
     assert stats.total_words == 2
     assert stats.processed == 2
