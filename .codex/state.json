@@ -1,14 +1,11 @@
 {
-  "current_task": "修复 kid_quiz.html 移动端乱码（编码优先 UTF-8）",
+  "current_task": "kid_quiz 交互体验微调（认识也展示答案 + 按钮居中）",
   "last_changes": [
     "kid_quiz.html",
-    "tests/test_encoding_html.py",
-    "tests/test_translate.py",
     "CODEx_TODO.md"
   ],
   "next_actions": [
-    "真机再验 iPad/Android 显示是否正常，必要时加入字体兜底",
-    "如需按要求使用 C:/apps/miniconda/envs/alpha/python.exe 运行 pytest，请先创建该解释器"
+    "在考试/复习两种模式下，用 iPad/手机体验点击“认识/不认识”时答案浮现和停留时间是否舒适"
   ],
-  "notes": "loadCsv 先用 UTF-8 fatal 解码，异常时再尝试 GBK；新增编码检测用例并同步异步化 translate 测试；pytest 使用系统 python 通过"
+  "notes": "handleKnow 现在会在考试/复习都短暂展示中英释义 0.5s 后进入下一题；handleDontKnow 的停留时间也统一为 0.5s，并将按钮行 flex 居中。"
 }

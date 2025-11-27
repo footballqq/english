@@ -12,3 +12,5 @@
 - [x] 提示: 首页增加使用说明与艾宾浩斯复习提示文案
 - [x] 文档: 将使用说明整理到 readme.md
 - [x] 修复: kid_quiz.html 优先 UTF-8 解码，避免 iPad/Android 端 GBK 解码导致汉字乱码；补充 GBK 回退检查测试
+- [x] 修复: kid_quiz.html CSV 添加首行 RAZ Level 头校验，避免远程 404 HTML 被当成词表解析
+- [x] 优化: kid_quiz 考试/复习点击“认识”也短暂展示中英释义（0.5s），并将底部按钮居中对齐
