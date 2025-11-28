@@ -33,7 +33,7 @@
 
 - 修改文件时先解释动机，完成后在首行写 `// codex: <日期> why`。
 - 遵循小步提交原则，避免大规模改动。
-- 设计pytest测试环节，使用 C:\apps\miniconda\envs\alpha\python.exe 进行测试
+- 设计pytest测试环节，使用 python 进行测试
 
 ## Style
 
@@ -142,3 +142,109 @@
 - Prefer relative paths in `config.yaml` to keep runs portable.
 - For reproducibility, use `data.provider: local` after the first Wind download.
 - Check `run.log` for diagnostics; include relevant excerpts in PRs when fixing issues.
+
+
+---
+# VSCode Codex Agent Policy (Windows + PowerShell + Python)
+
+The execution environment is:
+- Windows
+- PowerShell 7.x located at:  F:\apps\powershell\7\pwsh.exe
+- Python available
+- Ripgrep exists but NOT in PATH, located at:
+  C:\Users\qixin\.vscode\extensions\openai.chatgpt-0.5.46\bin\windows-x86_64\rg.exe
+
+## 1. Shell / command rules
+- NEVER assume Unix tools (bash, grep, sed, awk, rg, piped tools) are available.
+- If rg MUST be used, ALWAYS call it via absolute path:
+
+```powershell
+$rg = "C:\Users\qixin\.vscode\extensions\openai.chatgpt-0.5.46\bin\windows-x86_64\rg.exe"
+& $rg "pattern" file
+Otherwise ALWAYS default to PowerShell-native tools:
+
+file search → Select-String
+
+file read → Get-Content
+
+process → Start-Process / &
+
+2. Safe PowerShell rules
+To find a pattern in a file or extract context, ALWAYS use:
+
+powershell
+复制代码
+$content = Get-Content <FILE>
+
+$match = $content |
+  Select-String <PATTERN> -List |
+  Select-Object -First 1
+
+if (-not $match) { throw "Pattern not found" }
+
+$index = [int]$match.LineNumber
+
+$start = [math]::Max(1, $index - <OFFSET_BEFORE>)
+$end   = [math]::Min($content.Count, $index + <OFFSET_AFTER>)
+
+$content[ ($start-1)..($end-1) ]
+MANDATORY rules enforced by this template:
+
+NEVER perform arithmetic directly on pipeline output (System.Object[] - 1 errors).
+
+ALWAYS cast .LineNumber to [int].
+
+ALWAYS check for $null match.
+
+Wrap all range operators with parentheses: ($start-1)..($end-1).
+
+3. Path & quoting rules
+Always use double quotes for Windows paths.
+
+NEVER rely on relative paths unless explicitly requested.
+
+Escape or quote all paths with spaces.
+
+4. Agent step isolation
+Each code block MUST be self-contained.
+
+NEVER rely on variables from previous agent steps.
+
+Re-declare all variables you need (e.g., $content, $index, $start).
+
+5. Python rules
+Python is safe to use for:
+
+text processing
+
+listing files
+
+parsing config
+
+Output MUST be short, clean, and self-contained.
+
+Example pattern search fallback:
+
+python
+复制代码
+with open("reddit.py", encoding="utf-8") as f:
+    for i, line in enumerate(f, 1):
+        if "pattern" in line:
+            print(i, line.rstrip())
+6. Error handling rules
+If a tool is missing, respond with fallback logic, not failure.
+
+If pattern missing → report clearly instead of partial or silent output.
+
+Output MUST be deterministic and reproducible.
+
+7. NEVER do the following
+NEVER call: rg, grep, sed, awk, bash, sh without absolute path and justification.
+
+NEVER assume Linux-style paths.
+
+NEVER generate incomplete one-liner PowerShell without type guarantees.
+
+NEVER generate arithmetic on possibly-array variables.
+
+NEVER reuse environment variables unless explicitly declared in the same block

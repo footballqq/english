@@ -1,11 +1,11 @@
 {
-  "current_task": "kid_quiz 交互体验微调（认识也展示答案 + 按钮居中）",
+  "current_task": "kid_quiz 发音按钮乱码修复",
   "last_changes": [
     "kid_quiz.html",
     "CODEx_TODO.md"
   ],
   "next_actions": [
-    "在考试/复习两种模式下，用 iPad/手机体验点击“认识/不认识”时答案浮现和停留时间是否舒适"
+    "在真实设备上确认发音按钮文字和提示未再乱码"
   ],
-  "notes": "handleKnow 现在会在考试/复习都短暂展示中英释义 0.5s 后进入下一题；handleDontKnow 的停留时间也统一为 0.5s，并将按钮行 flex 居中。"
+  "notes": "按钮文案由 JS 注入“发音”，并统一了音标提示文案"
 }

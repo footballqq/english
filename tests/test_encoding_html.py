@@ -22,3 +22,10 @@ def test_kid_quiz_validates_csv_header():
     assert "function parseRazFull(text)" in html
     assert "const headerRow = rows[0] || [];" in html
     assert "if (firstCell !== 'RAZ Level')" in html
+
+
+def test_kid_quiz_has_pronunciation_button_and_api():
+    html = Path("kid_quiz.html").read_text(encoding="utf-8")
+    assert 'id="btn-pronounce"' in html
+    assert "dictionaryapi.dev/api/v2/entries/en/" in html
+    assert "async function fetchPronunciation" in html
