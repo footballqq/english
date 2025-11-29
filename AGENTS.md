@@ -1,4 +1,21 @@
 # AGENTS.md
+## Encoding / Unicode Safety Rule (Mandatory)
+
+The agent MUST NOT generate any non-ASCII or non-printable Unicode characters
+in:
+
+- task descriptions
+- next_actions
+- notes
+- file names
+- JSON values stored in .codex/state.json
+- PowerShell here-strings @" ... "@
+
+Only use standard UTF-8 printable characters (letters, numbers, punctuation, spaces).
+If user text contains non-ASCII characters, encode them safely (e.g. JSON escapes \uXXXX).
+
+Never output raw Unicode characters in a PowerShell here-string header or body.
+
 
 ## Role
 
@@ -248,3 +265,16 @@ NEVER generate incomplete one-liner PowerShell without type guarantees.
 NEVER generate arithmetic on possibly-array variables.
 
 NEVER reuse environment variables unless explicitly declared in the same block
+
+
+建议 Codex 改用这种方式（而不是 here-string）：
+
+$data = @{
+  current_task = "kid_quiz"
+  last_changes = @("kid_quiz.html", "tests/test_encoding_html.py", "CODEx_TODO.md")
+  next_actions = @("Check iPad sync result")
+  notes        = "Use dictionaryapi.dev for definitions"
+}
+
+$data | ConvertTo-Json -Depth 5 | Set-Content .codex\state.json -Encoding utf8
+→ 无需 here-string，完全避免解析错误。
